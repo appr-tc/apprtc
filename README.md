@@ -83,19 +83,71 @@ A client must register immediately after establishing the WebSocket connection:
 ```
 
 ### 2. Sending Signaling Messages (Client -> Server)
-To send SDP or ICE candidates to the other peer in the room:
+To send messages to the other peer in the room, use the `send` command. The `msg` field must contain a **stringified JSON object** representing the WebRTC payload:
 ```json
 {
   "cmd": "send",
-  "msg": "<escaped_json_payload>"
+  "msg": "<stringified_webrtc_payload>"
+}
+```
+
+Here are the exact JSON structures for the `<stringified_webrtc_payload>`:
+
+#### A. SDP Offer
+Sent by the initiator (Peer A) to describe their media capabilities:
+```json
+{
+  "type": "offer",
+  "sdp": "v=0\r\no=- 4607153678972825592 2 IN IP4 127.0.0.1\r\ns=-\r\nt=0 0\r\na=group:BUNDLE 0 1\r\n..."
+}
+```
+*Full Collider payload:*
+```json
+{
+  "cmd": "send",
+  "msg": "{\"type\":\"offer\",\"sdp\":\"v=0\\r\\no=- 4607153678972825592 2 IN IP4 127.0.0.1\\r\\ns=-\\r\\nt=0 0\\r\\na=group:BUNDLE 0 1\\r\\n...\"}"
+}
+```
+
+#### B. SDP Answer
+Sent by the receiver (Peer B) in response to the offer:
+```json
+{
+  "type": "answer",
+  "sdp": "v=0\r\no=- 1902847291837482910 2 IN IP4 127.0.0.1\r\ns=-\r\nt=0 0\r\na=group:BUNDLE 0 1\r\n..."
+}
+```
+*Full Collider payload:*
+```json
+{
+  "cmd": "send",
+  "msg": "{\"type\":\"answer\",\"sdp\":\"v=0\\r\\no=- 1902847291837482910 2 IN IP4 127.0.0.1\\r\\ns=-\\r\\nt=0 0\\r\\na=group:BUNDLE 0 1\\r\\n...\"}"
+}
+```
+
+#### C. ICE Candidate
+Sent by both peers during the candidate gathering process to establish a network path:
+```json
+{
+  "type": "candidate",
+  "label": 0,
+  "id": "sdpMid",
+  "candidate": "candidate:842163049 1 udp 16777215 192.168.1.100 58493 typ host raddr 0.0.0.0 rport 0"
+}
+```
+*Full Collider payload:*
+```json
+{
+  "cmd": "send",
+  "msg": "{\"type\":\"candidate\",\"label\":0,\"id\":\"sdpMid\",\"candidate\":\"candidate:842163049 1 udp 16777215 192.168.1.100 58493 typ host raddr 0.0.0.0 rport 0\"}"
 }
 ```
 
 ### 3. Forwarding Messages (Server -> Client)
-Collider wraps the payload and forwards it to the destination peer:
+Collider wraps the payload and forwards it to the destination peer in the following format:
 ```json
 {
-  "msg": "<escaped_json_payload>"
+  "msg": "<stringified_webrtc_payload>"
 }
 ```
 
