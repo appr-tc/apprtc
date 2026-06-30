@@ -31,8 +31,14 @@
     </div>
 
     <script>
-        // Adjust this URL if your Collider server is running on a different host or port
-        const COLLIDER_WS_URL = "ws://localhost:8089/ws";
+        // Dynamically resolve WebSocket URL based on how the page is loaded
+        let wsUrl;
+        if (window.location.protocol === "file:") {
+            wsUrl = "ws://localhost:8089/ws";
+        } else {
+            const wsScheme = window.location.protocol === "https:" ? "wss:" : "ws:";
+            wsUrl = `${wsScheme}//${window.location.host}/ws`;
+        }
         
         let localStream;
         let peerConnection;
@@ -66,7 +72,7 @@
         function connectToCollider(clientId) {
             roomId = document.getElementById("roomIdInput").value.trim() || "standalone_test_room";
             return new Promise((resolve, reject) => {
-                ws = new WebSocket(COLLIDER_WS_URL);
+                ws = new WebSocket(wsUrl);
                 
                 ws.onopen = () => {
                     updateStatus(`Connected to Collider as ${clientId} in Room ${roomId}`);
