@@ -44,7 +44,6 @@
         let peerConnection;
         let ws;
         let myClientId;
-        let targetClientId;
         let isInitiator = false;
         let roomId;
 
@@ -54,6 +53,11 @@
                 { urls: "stun:stun.l.google.com:19302" } // Hardcoded Google STUN Server
             ]
         };
+
+        // Generate a random 8-character alphanumeric ID
+        function generateRandomId() {
+            return Math.random().toString(36).substring(2, 10);
+        }
 
         // Get local camera and microphone media
         async function startMedia() {
@@ -109,8 +113,7 @@
         // PEER A: Start the Call
         async function initiateCall() {
             isInitiator = true;
-            myClientId = "peer_A";
-            targetClientId = "peer_B";
+            myClientId = "peer_" + generateRandomId();
             
             try {
                 await startMedia();
@@ -130,8 +133,7 @@
         // PEER B: Join the Call
         async function joinCall() {
             isInitiator = false;
-            myClientId = "peer_B";
-            targetClientId = "peer_A";
+            myClientId = "peer_" + generateRandomId();
 
             try {
                 await startMedia();
@@ -206,6 +208,15 @@
             document.getElementById("status").innerText = "Status: " + text;
             console.log(text);
         }
+
+        // Explicitly close the WebSocket when the tab is closed or refreshed
+        window.onbeforeunload = () => {
+            if (ws) {
+                try {
+                    ws.close();
+                } catch (e) {}
+            }
+        };
     </script>
 </body>
 </html>

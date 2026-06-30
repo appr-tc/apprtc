@@ -193,7 +193,7 @@ loop:
 			registered, rid, cid = true, msg.RoomID, msg.ClientID
 			c.dash.incrWs()
 
-			defer c.roomTable.deregister(rid, cid)
+			defer c.roomTable.remove(rid, cid)
 			break
 		case "send":
 			if !registered {
@@ -213,6 +213,7 @@ loop:
 	}
 	// This should be unnecessary but just be safe.
 	ws.Close()
+	log.Printf("wsHandler exited for client %s in room %s", cid, rid)
 }
 
 func (c *Collider) httpError(msg string, w http.ResponseWriter) {
