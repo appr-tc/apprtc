@@ -12,9 +12,6 @@ source-context*.json
 temp/*
 validation-report.json
 validation-status.json
-
-
-# Added by cargo
-
+bin/
 /target
 **/.idea/
