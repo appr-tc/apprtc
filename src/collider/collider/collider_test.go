@@ -30,7 +30,7 @@ func startCollider() {
 	serverAddr = "localhost:" + strconv.Itoa(*port)
 
 	cl = &Collider{
-		roomTable: newRoomTable(registerTimeout, "http://"+serverAddr),
+		roomTable: newRoomTable(registerTimeout),
 		dash:      newDashboard(),
 	}
 
@@ -50,7 +50,7 @@ func newConfig(t *testing.T, path string) *websocket.Config {
 
 func setup() {
 	once.Do(startCollider)
-	cl.roomTable = newRoomTable(registerTimeout, "http://"+serverAddr)
+	cl.roomTable = newRoomTable(registerTimeout)
 }
 
 func addWsClient(t *testing.T, roomID string, clientID string) *websocket.Conn {

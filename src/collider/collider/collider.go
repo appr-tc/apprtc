@@ -32,16 +32,23 @@ type Collider struct {
 	dash *dashboard
 }
 
-func NewCollider(rs string) *Collider {
+func NewCollider() *Collider {
 	return &Collider{
-		roomTable: newRoomTable(time.Second*registerTimeoutSec, rs),
+		roomTable: newRoomTable(time.Second*registerTimeoutSec),
 		dash:      newDashboard(),
 	}
 }
 
 // Run starts the collider server and blocks the thread until the program exits.
 func (c *Collider) Run(p int, useTls bool) {
-	http.Handle("/ws", websocket.Handler(c.wsHandler))
+	wsServer := websocket.Server{
+		Handler: websocket.Handler(c.wsHandler),
+		Handshake: func(config *websocket.Config, req *http.Request) error {
+			// Allow all origins (required for local file:// and cross-origin development)
+			return nil
+		},
+	}
+	http.Handle("/ws", wsServer)
 	http.HandleFunc("/status", c.httpStatusHandler)
 	http.HandleFunc("/", c.httpHandler)
 
@@ -99,6 +106,11 @@ func (c *Collider) httpStatusHandler(w http.ResponseWriter, r *http.Request) {
 func (c *Collider) httpHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Origin", "*")
 	w.Header().Add("Access-Control-Allow-Methods", "POST, DELETE")
+
+	if r.URL.Path == "/" || r.URL.Path == "/index.html" {
+		http.ServeFile(w, r, "index.html")
+		return
+	}
 
 	p := strings.Split(r.URL.Path, "/")
 	if len(p) != 3 {

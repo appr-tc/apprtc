@@ -17,11 +17,10 @@ type roomTable struct {
 	lock            sync.Mutex
 	rooms           map[string]*room
 	registerTimeout time.Duration
-	roomSrvUrl      string
 }
 
-func newRoomTable(to time.Duration, rs string) *roomTable {
-	return &roomTable{rooms: make(map[string]*room), registerTimeout: to, roomSrvUrl: rs}
+func newRoomTable(to time.Duration) *roomTable {
+	return &roomTable{rooms: make(map[string]*room), registerTimeout: to}
 }
 
 // room returns the room specified by |id|, or creates the room if it does not exist.
@@ -37,7 +36,7 @@ func (rt *roomTable) roomLocked(id string) *room {
 	if r, ok := rt.rooms[id]; ok {
 		return r
 	}
-	rt.rooms[id] = newRoom(rt, id, rt.registerTimeout, rt.roomSrvUrl)
+	rt.rooms[id] = newRoom(rt, id, rt.registerTimeout)
 	log.Printf("Created room %s", id)
 
 	return rt.rooms[id]

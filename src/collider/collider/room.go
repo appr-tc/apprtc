@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"net/http"
 	"time"
 )
 
@@ -22,11 +21,10 @@ type room struct {
 	// A mapping from the client ID to the client object.
 	clients         map[string]*client
 	registerTimeout time.Duration
-	roomSrvUrl      string
 }
 
-func newRoom(p *roomTable, id string, to time.Duration, rs string) *room {
-	return &room{parent: p, id: id, clients: make(map[string]*client), registerTimeout: to, roomSrvUrl: rs}
+func newRoom(p *roomTable, id string, to time.Duration) *room {
+	return &room{parent: p, id: id, clients: make(map[string]*client), registerTimeout: to}
 }
 
 // client returns the client, or creates it if it does not exist and the room is not full.
@@ -104,15 +102,6 @@ func (rm *room) remove(clientID string) {
 		c.deregister()
 		delete(rm.clients, clientID)
 		log.Printf("Removed client %s from room %s", clientID, rm.id)
-
-		// Send bye to the room Server.
-		resp, err := http.Post(rm.roomSrvUrl+"/bye/"+rm.id+"/"+clientID, "text", nil)
-		if err != nil {
-			log.Printf("Failed to post BYE to room server %s: %v", rm.roomSrvUrl, err)
-		}
-		if resp != nil && resp.Body != nil {
-			resp.Body.Close()
-		}
 	}
 }
 

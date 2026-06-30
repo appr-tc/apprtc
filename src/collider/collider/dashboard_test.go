@@ -15,7 +15,7 @@ import (
 )
 
 func createNewRoomTable() *roomTable {
-	return newRoomTable(time.Second, "")
+	return newRoomTable(time.Second)
 }
 
 func verifyIntValue(t *testing.T, i interface{}, name string, expected int, tag string) {

@@ -12,7 +12,7 @@ import (
 )
 
 func createNewRoom(id string) *room {
-	return newRoom(nil, id, time.Second, "")
+	return newRoom(nil, id, time.Second)
 }
 
 func TestNewRoom(t *testing.T) {
