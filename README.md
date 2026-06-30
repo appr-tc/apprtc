@@ -49,7 +49,7 @@ To run on port `443` with TLS enabled:
 ```bash
 ./bin/collider -port=443 -tls=true
 ```
-*Note: Secure mode requires a valid certificate (`cert.pem`) and private key (`key.pem`) to be placed in `/cert/cert.pem` and `/cert/key.pem` on your system.*
+*Note: Secure mode requires a valid certificate (`cert.pem`) and private key (`key.pem`) to be placed in the root of the repository.*
 
 ---
 
