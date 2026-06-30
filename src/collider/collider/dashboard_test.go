@@ -6,7 +6,7 @@
 package collider
 
 import (
-	"collidertest"
+	"collider/collidertest"
 	"errors"
 	"log"
 	"reflect"
@@ -15,7 +15,7 @@ import (
 )
 
 func createNewRoomTable() *roomTable {
-	return newRoomTable(time.Second, "")
+	return newRoomTable(time.Second)
 }
 
 func verifyIntValue(t *testing.T, i interface{}, name string, expected int, tag string) {
@@ -32,7 +32,7 @@ func verifyStringValue(t *testing.T, i interface{}, name string, expected string
 	f := v.FieldByName(name)
 	if f.Interface() != expected {
 		log.Printf("interface=%#v", i)
-		t.Errorf("%s is %d, want %d", tag, f.Interface(), expected)
+		t.Errorf("%s is %v, want %v", tag, f.Interface(), expected)
 	}
 }
 

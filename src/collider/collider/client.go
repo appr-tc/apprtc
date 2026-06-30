@@ -23,6 +23,10 @@ type client struct {
 	msgs []string
 	// timer is used to remove this client if unregistered after a timeout.
 	timer *time.Timer
+	// isInitiator is true for the first client to join a room (the WebRTC
+	// caller). Folded in from apprtc.py Client.is_initiator when the room
+	// server was merged into Collider.
+	isInitiator bool
 }
 
 func newClient(id string, t *time.Timer) *client {

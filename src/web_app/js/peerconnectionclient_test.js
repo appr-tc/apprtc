@@ -35,7 +35,7 @@ describe('PeerConnectionClient Test', function() {
 
     peerConnections.push(this);
   };
-  MockRTCPeerConnection.prototype.addStream = function(stream) {
+  MockRTCPeerConnection.prototype.addTrack = function(track, stream) {
     this.streams.push(stream);
   };
   MockRTCPeerConnection.prototype.createOffer = function(constraints) {
@@ -118,11 +118,9 @@ describe('PeerConnectionClient Test', function() {
   MockRTCPeerConnection.prototype.close = function() {
     this.signalingState = 'closed';
   };
-  MockRTCPeerConnection.prototype.getRemoteStreams = function() {
+  MockRTCPeerConnection.prototype.getReceivers = function() {
     return [{
-      getVideoTracks: function() {
-        return ['track'];
-      }
+      track: {kind: 'video'}
     }];
   };
 
@@ -157,7 +155,11 @@ describe('PeerConnectionClient Test', function() {
   });
 
   it('Add stream', function() {
-    var stream = {'foo': 'bar'};
+    var stream = {
+      getTracks: function() {
+        return [{kind: 'video'}];
+      }
+    };
     this.pcClient.addStream(stream);
     expect(peerConnections[0].streams.length).toEqual(1);
     expect(peerConnections[0].streams[0]).toEqual(stream);
@@ -296,16 +298,14 @@ describe('PeerConnectionClient Test', function() {
     expect(this.pcClient.startAsCallee(initialMsgs)).toBeTruthy();
   });
 
-  it('On remote stream added', function() {
+  it('On remote stream added', function(done) {
     var stream = 'stream';
-    var event = {
-      stream: 'stream'
-    };
-    this.pcClient.onremotestreamadded = function(event) {
-      expect(stream).toEqual(event.stream);
+    this.pcClient.onremotestreamadded = function(receivedStream) {
+      expect(receivedStream).toEqual(stream);
       done();
     };
-    peerConnections[0].addStream(event);
+    // The standard ontrack event carries the stream in event.streams[0].
+    peerConnections[0].ontrack({streams: [stream]});
   });
 
   it('On signaling state change', function(done) {

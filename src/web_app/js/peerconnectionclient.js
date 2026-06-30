@@ -80,7 +80,11 @@ PeerConnectionClient.prototype.addStream = function(stream) {
   if (!this.pc_) {
     return;
   }
-  this.pc_.addStream(stream);
+  // Use the standard addTrack rather than the legacy addStream: Chrome keeps
+  // addStream for backwards compatibility, but Safari only implements addTrack.
+  stream.getTracks().forEach(function(track) {
+    this.pc_.addTrack(track, stream);
+  }.bind(this));
 };
 
 PeerConnectionClient.prototype.startAsCaller = function(offerOptions) {
@@ -246,13 +250,15 @@ PeerConnectionClient.prototype.setRemoteSdp_ = function(message) {
 
 PeerConnectionClient.prototype.onSetRemoteDescriptionSuccess_ = function() {
   trace('Set remote session description success.');
-  // By now all onaddstream events for the setRemoteDescription have fired,
-  // so we can know if the peer has any remote video streams that we need
-  // to wait for. Otherwise, transition immediately to the active state.
-  var remoteStreams = this.pc_.getRemoteStreams();
+  // By now all ontrack events for the setRemoteDescription have fired, so we
+  // can know if the peer has any remote video tracks that we need to wait for.
+  // Otherwise, transition immediately to the active state. Use the standard
+  // getReceivers rather than the legacy getRemoteStreams, which Safari dropped.
+  var hasRemoteVideo = this.pc_.getReceivers().some(function(receiver) {
+    return receiver.track && receiver.track.kind === 'video';
+  });
   if (this.onremotesdpset) {
-    this.onremotesdpset(remoteStreams.length > 0 &&
-                        remoteStreams[0].getVideoTracks().length > 0);
+    this.onremotesdpset(hasRemoteVideo);
   }
 };
 

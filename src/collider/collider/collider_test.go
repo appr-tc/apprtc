@@ -6,10 +6,10 @@
 package collider
 
 import (
-	"golang.org/x/net/websocket"
 	"encoding/json"
 	"flag"
 	"fmt"
+	"golang.org/x/net/websocket"
 	"net"
 	"net/http"
 	"strconv"
@@ -30,7 +30,7 @@ func startCollider() {
 	serverAddr = "localhost:" + strconv.Itoa(*port)
 
 	cl = &Collider{
-		roomTable: newRoomTable(registerTimeout, "http://"+serverAddr),
+		roomTable: newRoomTable(registerTimeout),
 		dash:      newDashboard(),
 	}
 
@@ -50,7 +50,7 @@ func newConfig(t *testing.T, path string) *websocket.Config {
 
 func setup() {
 	once.Do(startCollider)
-	cl.roomTable = newRoomTable(registerTimeout, "http://"+serverAddr)
+	cl.roomTable = newRoomTable(registerTimeout)
 }
 
 func addWsClient(t *testing.T, roomID string, clientID string) *websocket.Conn {
@@ -93,7 +93,7 @@ func write(t *testing.T, conn *websocket.Conn, data interface{}) {
 }
 
 func postSend(t *testing.T, roomID string, clientID string, msg string) {
-	urlstr := "http://" + serverAddr + "/" + roomID + "/" + clientID
+	urlstr := "http://" + serverAddr + "/_internal/" + roomID + "/" + clientID
 	r := strings.NewReader(msg)
 	_, err := http.Post(urlstr, "application/octet-stream", r)
 	if err != nil {
@@ -103,7 +103,7 @@ func postSend(t *testing.T, roomID string, clientID string, msg string) {
 
 func postDel(t *testing.T, roomID string, clientID string) {
 	var c http.Client
-	urlstr := "http://" + serverAddr + "/" + roomID + "/" + clientID
+	urlstr := "http://" + serverAddr + "/_internal/" + roomID + "/" + clientID
 	req, err := http.NewRequest("DELETE", urlstr, nil)
 	if err != nil {
 		t.Errorf("http.NewRequest(DELETE, %q, nil) got error: %v, want nil", urlstr, err)

@@ -8,9 +8,9 @@ package collider
 
 import (
 	"crypto/tls"
-	"golang.org/x/net/websocket"
 	"encoding/json"
 	"errors"
+	"golang.org/x/net/websocket"
 	"html"
 	"io"
 	"io/ioutil"
@@ -30,29 +30,59 @@ const wsReadTimeoutSec = 60 * 60 * 24
 type Collider struct {
 	*roomTable
 	dash *dashboard
+	// rs serves the web app and room API in-process (nil in WS-only tests).
+	rs *roomServer
 }
 
-func NewCollider(rs string) *Collider {
-	return &Collider{
-		roomTable: newRoomTable(time.Second*registerTimeoutSec, rs),
-		dash:      newDashboard(),
+// NewCollider builds a Collider that serves the web app, the room API, and the
+// WebSocket signaling relay from a single binary (no App Engine room server).
+func NewCollider(cfg *Config) (*Collider, error) {
+	rt := newRoomTable(time.Second * registerTimeoutSec)
+	rs, err := newRoomServer(cfg, rt)
+	if err != nil {
+		return nil, err
 	}
+	c := &Collider{
+		roomTable: rt,
+		dash:      newDashboard(),
+		rs:        rs,
+	}
+	if cfg.RoomMaxAgeSec > 0 {
+		rt.startSweeper(time.Duration(cfg.RoomMaxAgeSec) * time.Second)
+	}
+	return c, nil
 }
 
 // Run starts the collider server and blocks the thread until the program exits.
 func (c *Collider) Run(p int, useTls bool) {
-	http.Handle("/ws", websocket.Handler(c.wsHandler))
-	http.HandleFunc("/status", c.httpStatusHandler)
-	http.HandleFunc("/", c.httpHandler)
+	mux := http.NewServeMux()
+	mux.Handle("/ws", websocket.Handler(c.wsHandler))
+	mux.HandleFunc("/status", c.httpStatusHandler)
+	// Internal message inject/purge bridge. This used to be POST|DELETE
+	// /{roomid}/{clientid} on "/" so the separate room server could reach into
+	// Collider; with both merged it is internal-only and moved off the root so
+	// the web app can own "/".
+	mux.HandleFunc("/_internal/", c.bridgeHandler)
+
+	// Web app + room API (apprtc.py). Absent in WS-only unit tests.
+	if c.rs != nil {
+		mux.HandleFunc("/join/", c.rs.handleJoin)
+		mux.HandleFunc("/leave/", c.rs.handleLeave)
+		mux.HandleFunc("/message/", c.rs.handleMessage)
+		mux.HandleFunc("/params", c.rs.paramsPage)
+		mux.HandleFunc("/v1alpha/iceconfig", c.rs.iceConfigPage)
+		mux.HandleFunc("/r/", c.rs.handleRoom)
+		mux.HandleFunc("/", c.rs.handleRoot)
+	}
 
 	var e error
 
 	pstr := ":" + strconv.Itoa(p)
 	if useTls {
-		config := &tls.Config {
+		config := &tls.Config{
 			// Only allow ciphers that support forward secrecy for iOS9 compatibility:
 			// https://developer.apple.com/library/prerelease/ios/technotes/App-Transport-Security-Technote/
-			CipherSuites: []uint16 {
+			CipherSuites: []uint16{
 				tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
 				tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
 				tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
@@ -63,11 +93,11 @@ func (c *Collider) Run(p int, useTls bool) {
 			},
 			PreferServerCipherSuites: true,
 		}
-		server := &http.Server{ Addr: pstr, Handler: nil, TLSConfig: config }
+		server := &http.Server{Addr: pstr, Handler: mux, TLSConfig: config}
 
 		e = server.ListenAndServeTLS("/cert/cert.pem", "/cert/key.pem")
 	} else {
-		e = http.ListenAndServe(pstr, nil)
+		e = http.ListenAndServe(pstr, mux)
 	}
 
 	if e != nil {
@@ -90,22 +120,20 @@ func (c *Collider) httpStatusHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// httpHandler is a HTTP handler that handles GET/POST/DELETE requests.
-// POST request to path "/$ROOMID/$CLIENTID" is used to send a message to the other client of the room.
-// $CLIENTID is the source client ID.
-// The request must have a form value "msg", which is the message to send.
-// DELETE request to path "/$ROOMID/$CLIENTID" is used to delete all records of a client, including the queued message from the client.
-// "OK" is returned if the request is valid.
-func (c *Collider) httpHandler(w http.ResponseWriter, r *http.Request) {
+// bridgeHandler handles the internal message inject/purge bridge.
+// POST   /_internal/{roomid}/{clientid} sends a message to the other client.
+// DELETE /_internal/{roomid}/{clientid} deletes all records of a client.
+// {clientid} is the source client ID. "OK" is returned if the request is valid.
+func (c *Collider) bridgeHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Origin", "*")
 	w.Header().Add("Access-Control-Allow-Methods", "POST, DELETE")
 
-	p := strings.Split(r.URL.Path, "/")
-	if len(p) != 3 {
+	p := trimColliderPath(strings.TrimPrefix(r.URL.Path, "/_internal"))
+	if len(p) != 2 {
 		c.httpError("Invalid path: "+html.EscapeString(r.URL.Path), w)
 		return
 	}
-	rid, cid := p[1], p[2]
+	rid, cid := p[0], p[1]
 
 	switch r.Method {
 	case "POST":

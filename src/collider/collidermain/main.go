@@ -6,20 +6,49 @@
 package main
 
 import (
-	"collider"
+	"collider/collider"
 	"flag"
 	"log"
+	"strings"
 )
 
 var tls = flag.Bool("tls", true, "whether TLS is used")
 var port = flag.Int("port", 443, "The TCP port that the server listens on")
-var roomSrv = flag.String("room-server", "https://appr.tc", "The origin of the room server")
+var host = flag.String("host", "", "Public host:port used to build self URLs (wss/room links); defaults to the request Host")
+var webRoot = flag.String("web-root", "../web_app", "Path to the web_app directory served as static assets")
+var iceServerURLs = flag.String("ice-server-urls", "stun:stun.l.google.com:19302", "Comma-separated ICE/STUN/TURN urls returned from /v1alpha/iceconfig")
+var headerMessage = flag.String("header-message", "", "Optional banner shown on every page")
+var bypassJoinConfirmation = flag.Bool("bypass-join-confirmation", false, "Skip the join confirmation prompt")
+var roomMaxAgeSec = flag.Int("room-max-age-sec", 60*60*24, "Idle room TTL in seconds (0 disables the sweeper)")
+
+func splitCommaList(s string) []string {
+	var out []string
+	for _, p := range strings.Split(s, ",") {
+		if p = strings.TrimSpace(p); p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
+}
 
 func main() {
 	flag.Parse()
 
-	log.Printf("Starting collider: tls = %t, port = %d, room-server=%s", *tls, *port, *roomSrv)
+	cfg := &collider.Config{
+		WebRoot:                *webRoot,
+		Host:                   *host,
+		ForceTLS:               *tls,
+		IceServerUrls:          splitCommaList(*iceServerURLs),
+		HeaderMessage:          *headerMessage,
+		BypassJoinConfirmation: *bypassJoinConfirmation,
+		RoomMaxAgeSec:          *roomMaxAgeSec,
+	}
 
-	c := collider.NewCollider(*roomSrv)
+	log.Printf("Starting collider: tls = %t, port = %d, web-root = %s", *tls, *port, *webRoot)
+
+	c, err := collider.NewCollider(cfg)
+	if err != nil {
+		log.Fatalf("Failed to create collider: %v", err)
+	}
 	c.Run(*port, *tls)
 }
